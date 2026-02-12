@@ -1,16 +1,13 @@
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.permissions import IsAuthenticated
-from core.models import Patient
-from .serializers import PatientSerializer
+from core.models import Patient, Doctor, Pharmacy, MedicalRecord, Prescription
+from .serializers import PatientSerializer, DoctorSerializer, PharmacySerializer, MedicalRecordSerializer, PrescriptionSerializer
 from .permissions import IsDoctor
-from core.models import Doctor
-from .serializers import DoctorSerializer
-from core.models import Pharmacy
-from .serializers import PharmacySerializer
-from core.models import MedicalRecord
-from .serializers import MedicalRecordSerializer
-from core.models import Prescription
-from .serializers import PrescriptionSerializer
+from rest_framework.authtoken.models import Token
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from django.contrib.auth import authenticate
 
 
 # Create your views here.
@@ -42,3 +39,33 @@ class PrescriptionViewSet(ModelViewSet):
     queryset = Prescription.objects.all()
     serializer_class = PrescriptionSerializer
     permission_classes = [IsAuthenticated]   
+
+
+
+class LoginView(APIView):
+     #Allow anyone to access login(even unauthenticated users)
+    permission_classes = []
+
+    #Extract username and password from request body
+    def post(self, request):
+        username = request.data.get("username")
+        password = request.data.get("password")
+
+        #Authenticate checks if credentials are valid
+        user = authenticate(username=username, password=password)
+
+        if user is None:
+            return Response(
+                {"error": "Invalid credentials"},
+                status=status.HTTP_401_UNAUTHORIZED 
+            )
+        
+        #Get existing token or create one if it doesn't exist
+        token, created = Token.objects.get_or_create(user=user)
+
+        return Response({
+            "token": token.key,
+            "user_id": user.id,
+            "role": user.role,
+            "username": user.username
+        })
