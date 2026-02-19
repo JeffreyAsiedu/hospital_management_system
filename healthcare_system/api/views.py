@@ -9,6 +9,8 @@ from rest_framework.response import Response
 from rest_framework import status
 from django.contrib.auth import authenticate
 from rest_framework.exceptions import PermissionDenied
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework.filters import SearchFilter, OrderingFilter
 
 
 # Create your views here.
@@ -54,14 +56,26 @@ class MedicalRecordViewSet(ModelViewSet):
     """Controls access to medical records"""
     queryset = MedicalRecord.objects.all()
     serializer_class = MedicalRecordSerializer
-    permission_classes = [IsAuthenticated, IsDoctor]
+    permission_classes = [IsAuthenticated]
+    
+    #Enable filter backends
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+
+    #Exact Field filtering 
+    filterset_fields = ['patient', 'doctor']
+
+    #Text search fields
+    search_fields = ['diagnosis', 'treatment', 'notes']
+
+    #Allow ordering
+    ordering_fields = ['date_created', 'last_updated']
 
     def get_queryset(self):
         user = self.request.user
 
         if user.role == "doctor":
             return MedicalRecord.objects.all()
-
+        
         if user.role == "patient":
             return MedicalRecord.objects.filter(patient__user=user)
 
@@ -74,18 +88,30 @@ class PrescriptionViewSet(ModelViewSet):
     serializer_class = PrescriptionSerializer
     permission_classes = [IsAuthenticated] 
 
+    #Enable filter backends
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+
+    #Exact Field filtering 
+    filterset_fields = ['patient', 'doctor', 'pharmacy']
+
+    #Text search fields
+    search_fields = ['medication_name', 'instructions']
+
+    #Allow ordering
+    ordering_fields = ['issue_date']
+
     def get_queryset(self):
         user = self.request.user
 
         if user.role == "doctor":
-            return Prescription.objects.filter(doctor__user=user)
+            return Prescription.objects.filter(doctor__user =user)
         
         if user.role == "patient":
             return Prescription.objects.filter(patient__user=user)
-
+        
         if user.role == "pharmacist":
             return Prescription.objects.all()
-        
+
         return Prescription.objects.none()
     
 
@@ -100,6 +126,7 @@ class PrescriptionViewSet(ModelViewSet):
         if request.user.role == "pharmacist":
             raise PermissionDenied("Pharmacists cannot update prescriptions.")
         return super().update(request, *args, **kwargs)
+    
 
 
 class LoginView(APIView):

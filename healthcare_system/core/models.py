@@ -48,7 +48,7 @@ class MedicalRecord(models.Model):
     doctor = models.ForeignKey(Doctor, on_delete=models.CASCADE)
     diagnosis = models.CharField(max_length=255)
     treatment = models.CharField(max_length=255)
-    notes = models.TextField
+    notes = models.TextField(blank=True, default="")
     date_created = models.DateField(auto_now_add=True)
     last_updated = models.DateField(auto_now=True)
 
