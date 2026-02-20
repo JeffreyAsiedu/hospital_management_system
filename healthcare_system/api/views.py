@@ -34,6 +34,27 @@ class PatientViewSet(ModelViewSet):
         
         return Patient.objects.none()
     
+    def perform_create(self, serializer):
+        #Only admin can create patients
+        if self.request.user.role != "admin":
+            raise PermissionDenied("Only admin can create patients.")
+        serializer.save()
+
+    def perform_update(self, serializer):
+        user = self.request.user
+
+        #Patients can update their own profile
+        if user.role == "patient":
+            serializer.save(user=user) 
+            return
+
+        #Admin can update anyone
+        if user.role == "admin":
+            serializer.save()
+            return
+
+        raise PermissionDenied("You cannot update")   
+    
     def destroy(self, request, *args, **kwargs):
         #Prevent doctors from deleting patients
         if request.user.role == "doctor":
@@ -45,11 +66,63 @@ class DoctorViewSet(ModelViewSet):
     serializer_class = DoctorSerializer
     permission_classes = [IsAuthenticated]
 
+    def get_queryset(self):
+        user = self.request.user
+
+        if user.role == "admin":
+            return Doctor.objects.all()
+        
+        if user.role == "doctor":
+            return Doctor.objects.filter(user=user)
+        
+        return Doctor.objects.none()
+    
+    def perform_create(self, serializer):
+        #Only admin can create doctors
+        if self.request.user.role != "admin":
+            raise PermissionDenied("Only admin can create doctors.")
+        serializer.save()
+
+    def perform_update(self, serializer):
+        user = self.request.user
+
+        #Doctors can update their own profile
+        if user.role == "doctor":
+            serializer.save(user=user) 
+            return
+
+        #Admin can update anyone
+        if user.role == "admin":
+            serializer.save()
+            return
+
+        raise PermissionDenied("You cannot update")
+    
 
 class PharmacyViewSet(ModelViewSet):
     queryset = Pharmacy.objects.all()
     serializer_class = PharmacySerializer
-    permission_classes = [IsAuthenticated]    
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+
+        if user.role == "pharmacist":
+            return Prescription.objects.all()
+
+        if user.role == "doctor":
+            return Prescription.objects.filter(doctor__user=user)
+
+        if user.role == "patient":
+            return Prescription.objects.filter(patient__user=user)   
+
+        return Prescription.objects.none()
+    
+    def perform_create(self, serializer):
+        #Only admin can add pharmacies
+        if self.request.user.role != "admin":
+            raise PermissionDenied("Only admin can create pharmacies.")
+        serializer.save()
 
 
 class MedicalRecordViewSet(ModelViewSet):
@@ -80,6 +153,18 @@ class MedicalRecordViewSet(ModelViewSet):
             return MedicalRecord.objects.filter(patient__user=user)
 
         return MedicalRecord.objects.none()
+    
+    def perform_create(self, serializer):
+        #Only doctors can create medical records
+        if self.request.user.role != "doctor":
+            raise PermissionDenied("Only doctors can create medical records.")
+        serializer.save()
+
+    def perform_update(self, serializer):
+        #Only doctors can update medical records
+        if self.request.user.role != "doctor":
+            raise PermissionDenied("Only doctors can update medical records.")
+        serializer.save()
 
 
 class PrescriptionViewSet(ModelViewSet):
@@ -114,18 +199,22 @@ class PrescriptionViewSet(ModelViewSet):
 
         return Prescription.objects.none()
     
+    def perform_create(self, serializer):
+        if self.request.user.role != "doctor":
+            raise PermissionDenied("Only doctors can create prescriptions.")
+        serializer.save()
+
+    def perform_update(self, serializer):
+        #Only doctors can update prescriptions
+        if self.request.user.role != "doctor":
+            raise PermissionDenied("Only doctors can update prescriptions.")
+        serializer.save()
 
     def destroy(self, request, *args, **kwargs):
         #Prevent pharmacists from deleting
         if request.user.role == "pharmacist":
             raise PermissionDenied("Pharmacists cannot delete prescriptions.")
         return super().destroy(request, *args, **kwargs)
-
-    def update(self, request, *args, **kwargs):
-        #Prevent pharmacists from updating
-        if request.user.role == "pharmacist":
-            raise PermissionDenied("Pharmacists cannot update prescriptions.")
-        return super().update(request, *args, **kwargs)
     
 
 
